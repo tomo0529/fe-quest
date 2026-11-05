@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14122b">
+<title>FE QUEST</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14122b; --panel:#221f45; --deep:#0c0b1d; --line:#4b46a0;
+  --text:#f3f0ff; --dim:#9c97cf; --gold:#ffd23f; --red:#ff5d73;
+  --green:#5ef08a; --cyan:#5ce1e6;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'DotGothic16',system-ui,sans-serif; font-size:16px; line-height:1.5;
+  background-image:radial-gradient(#ffffff12 1px,transparent 1px); background-size:16px 16px;
+  min-height:100vh; -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:480px;margin:0 auto;padding:16px 16px 56px}
+.hidden{display:none!important}
+header{display:flex;align-items:center;justify-content:space-between;margin:4px 0 16px}
+h1{font-size:30px;margin:0;letter-spacing:3px;color:var(--gold);text-shadow:3px 3px 0 #000;font-weight:400}
+h2{font-size:15px;margin:0 0 10px;color:var(--dim);font-weight:400;letter-spacing:1px}
+.panel{background:var(--panel);border:3px solid var(--line);box-shadow:4px 4px 0 #000;padding:14px;margin-bottom:16px}
+.btn{font:inherit;color:#14122b;background:var(--gold);border:3px solid #000;box-shadow:4px 4px 0 #000;
+  padding:10px 16px;cursor:pointer;touch-action:manipulation}
+.btn:active{transform:translate(4px,4px);box-shadow:none}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--line);box-shadow:none;padding:6px 10px}
+.btn.big{width:100%;font-size:26px;padding:18px 10px;letter-spacing:2px}
+.btn.big.done{background:var(--green)}
+.link{background:none;border:0;color:var(--dim);font:inherit;text-decoration:underline;cursor:pointer;padding:6px}
+label{display:block;margin-bottom:12px;color:var(--dim);font-size:14px}
+input{font:inherit;width:100%;margin-top:4px;padding:10px;background:var(--deep);color:var(--text);
+  border:2px solid var(--line);border-radius:0;-webkit-appearance:none;appearance:none}
+input:focus{outline:2px solid var(--gold)}
+.note{color:var(--dim);font-size:13px;margin:10px 0 0}
+.err{color:var(--red);font-size:14px;min-height:1.5em;margin:6px 0 0}
+.tabs{display:flex;margin-bottom:14px}
+.tab{flex:1;font:inherit;padding:8px;background:var(--deep);color:var(--dim);border:2px solid var(--line);cursor:pointer}
+.tab.on{background:var(--line);color:var(--text)}
+
+.player{display:flex;gap:12px;align-items:center}
+.avatar{width:56px;height:56px;flex:none;background:var(--deep);border:3px solid #000;display:grid;place-items:center;font-size:30px}
+.pname{font-size:20px;word-break:break-all}
+.ptitle{color:var(--gold);font-size:13px}
+.bar{height:14px;border:2px solid #000;background:var(--deep);margin-top:6px}
+.bar>i{display:block;height:100%;background:var(--cyan);transition:width .5s steps(10)}
+.bar.hp>i{background:var(--red)}
+.small{font-size:12px;color:var(--dim);display:flex;justify-content:space-between}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stat{background:var(--deep);border:2px solid var(--line);padding:8px 4px}
+.stat b{display:block;font-size:28px;font-weight:400;line-height:1.2}
+.stat span{font-size:12px;color:var(--dim)}
+.stat.fire b{color:var(--gold)}
+
+.boss{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.boss .days{font-size:26px;color:var(--red)}
+
+.chips{display:flex;gap:8px;margin-bottom:12px}
+.chip{flex:1;font:inherit;font-size:14px;padding:8px 4px;background:var(--deep);color:var(--dim);border:2px solid var(--line);cursor:pointer}
+.chip.on{background:var(--cyan);color:#14122b;border-color:#000}
+.warn{color:var(--gold);text-align:center;font-size:14px;margin:0 0 10px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.center{text-align:center}
+
+.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:3px}
+.heat i{aspect-ratio:1;background:var(--deep);border:1px solid #2a2756}
+.heat i.on{background:var(--green);border-color:#000}
+.heat i.on2{background:#2fb862;border-color:#000}
+.heat i.today{outline:2px solid var(--gold);outline-offset:-1px}
+.heat i.future{opacity:.2}
+
+.party{list-style:none;margin:0;padding:0}
+.party li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:2px dashed var(--line)}
+.party li:last-child{border-bottom:0}
+.party .rank{width:22px;color:var(--dim)}
+.party .who{flex:1;min-width:0}
+.party .who b{font-weight:400;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.party .who span{font-size:12px;color:var(--dim)}
+.party .fire{color:var(--gold);white-space:nowrap}
+.party .ok{width:26px;text-align:center}
+.you{font-size:11px;background:var(--gold);color:#14122b;padding:0 4px;margin-left:4px}
+
+#clear{position:fixed;inset:0;background:#000c;display:grid;place-items:center;z-index:20;text-align:center}
+#clear .t{font-size:40px;color:var(--gold);text-shadow:4px 4px 0 #000;animation:pop .5s steps(5)}
+#clear .s{font-size:20px;margin-top:8px}
+@keyframes pop{from{transform:scale(.3)}to{transform:scale(1)}}
+#toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:448px;margin:0 auto;background:var(--red);color:#14122b;
+  border:3px solid #000;padding:10px;z-index:30;text-align:center}
+
+dialog{background:var(--panel);color:var(--text);border:3px solid var(--line);box-shadow:4px 4px 0 #000;
+  width:min(440px,calc(100% - 32px));padding:16px}
+dialog::backdrop{background:#000a}
+.row{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p id="loading" class="center" style="margin-top:40vh">LOADING...</p>
+
+  <!-- ログイン -->
+  <section id="auth" class="hidden">
+    <header><h1>FE QUEST</h1></header>
+    <div class="panel">
+      <h2>▶ ログイン</h2>
+      <button class="btn big" id="googleBtn" type="button">Googleでログイン</button>
+      <p class="err" id="authErr"></p>
+      <p class="note">Googleアカウントのメールアドレスや名前は他のメンバーには表示されません。表示されるのは、このあと決めるユーザー名だけです。</p>
+    </div>
+  </section>
+
+  <!-- 初回：名前と試験日と招待コード -->
+  <section id="onboard" class="hidden">
+    <header><h1>FE QUEST</h1></header>
+    <div class="panel">
+      <h2>▶ 冒険者登録</h2>
+      <form id="onboardForm">
+        <label>ユーザー名（16文字まで・みんなに表示）<input id="obName" maxlength="16" required></label>
+        <label>試験日（あとで変更OK）<input id="obDate" type="date"></label>
+        <label>招待コード（誘ってくれた人に聞いてね）<input id="obInvite" required autocomplete="off"></label>
+        <button class="btn big" id="obBtn">冒険をはじめる</button>
+        <p class="err" id="obErr"></p>
+      </form>
+      <div class="center"><button class="link" id="obLogout" type="button">別のアカウントでログイン</button></div>
+    </div>
+  </section>
+
+  <!-- メイン -->
+  <section id="main" class="hidden">
+    <header>
+      <h1>FE QUEST</h1>
+      <button class="btn ghost" id="openSettings" type="button" aria-label="設定">⚙ 設定</button>
+    </header>
+
+    <div class="panel">
+      <div class="player">
+        <div class="avatar" id="avatar">🧙</div>
+        <div style="flex:1;min-width:0">
+          <div class="pname" id="pName"></div>
+          <div class="ptitle" id="pTitle"></div>
+          <div class="bar"><i id="xpBar" style="width:0"></i></div>
+          <div class="small"><span id="pLv"></span><span id="pXp"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-bottom:16px">
+      <div class="stat fire"><b id="sStreak">0</b><span>🔥 連続日数</span></div>
+      <div class="stat"><b id="sBest">0</b><span>最高記録</span></div>
+      <div class="stat"><b id="sTotal">0</b><span>合計日数</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="boss">
+        <h2 style="margin:0">BOSS：基本情報技術者試験</h2>
+        <span class="days" id="bossDays"></span>
+      </div>
+      <div class="bar hp"><i id="hpBar" style="width:100%"></i></div>
+      <div class="small"><span id="bossDate"></span><span id="bossWeeks"></span></div>
+    </div>
+
+    <div class="panel">
+      <h2>▶ 今日のクエスト</h2>
+      <div class="chips" id="chips"></div>
+      <p class="warn hidden" id="warn"></p>
+      <button class="btn big" id="clearBtn" type="button">今日やった！</button>
+      <div class="center"><button class="link hidden" id="undoBtn" type="button">取り消す</button></div>
+    </div>
+
+    <div class="panel">
+      <h2>▶ 冒険の記録（12週）</h2>
+      <div class="heat" id="heat"></div>
+    </div>
+
+    <div class="panel">
+      <h2>▶ パーティー</h2>
+      <ul class="party" id="party"></ul>
+    </div>
+  </section>
+</div>
+
+<dialog id="settings">
+  <form id="settingsForm" method="dialog">
+    <h2>▶ 設定</h2>
+    <label>ユーザー名<input id="stName" maxlength="16" required></label>
+    <label>試験日<input id="stDate" type="date"></label>
+    <p class="err" id="stErr"></p>
+    <div class="row">
+      <button class="link" id="logout" type="button">ログアウト</button>
+      <span>
+        <button class="btn ghost" value="cancel" formnovalidate>閉じる</button>
+        <button class="btn" id="saveSettings" value="default">保存</button>
+      </span>
+    </div>
+  </form>
+</dialog>
+
+<div id="clear" class="hidden"><div><div class="t">STAGE CLEAR!</div><div class="s" id="clearSub"></div></div></div>
+<div id="toast" class="hidden"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+  from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where }
+  from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+
+// ===== ここを Firebase コンソールの firebaseConfig に置き換える =====
+const firebaseConfig = {
+  apiKey: 'YOUR-API-KEY',
+  authDomain: 'YOUR-PROJECT.firebaseapp.com',
+  projectId: 'YOUR-PROJECT',
+  storageBucket: 'YOUR-PROJECT.firebasestorage.app',
+  messagingSenderId: '000000000000',
+  appId: '1:000000000000:web:0000000000000000',
+};
+// ====================================================================
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+if (firebaseConfig.apiKey.startsWith('YOUR')) {
+  $('#loading').textContent = 'index.html の firebaseConfig を設定してね';
+  throw new Error('firebaseConfig not set');
+}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const TAGS = [['A','科目A'],['B','科目B'],['T','教科書']];
+const TITLES = ['ビギナー','見習いエンジニア','バグハンター','アルゴリズム使い','ネットワーク術師','DBの賢者','基本情報マスター'];
+const AVATARS = ['🐣','🧙','🗡️','🛡️','🐉','👑','🌟'];
+
+// ---- 日付（日本時間で日付を切る） ----
+const TZ = 'Asia/Tokyo';
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: TZ });
+const addDays = (s, n) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const diffDays = (a, b) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86400000);
+
+function calcStreak(set) {
+  const t = today();
+  let d = set.has(t) ? t : addDays(t, -1);   // 今日まだでも昨日やってれば継続中
+  let n = 0;
+  while (set.has(d)) { n++; d = addDays(d, -1); }
+  return n;
+}
+function bestStreak(set) {
+  const days = [...set].sort();
+  let best = 0, cur = 0, prev = null;
+  for (const d of days) { cur = (prev && diffDays(d, prev) === 1) ? cur + 1 : 1; best = Math.max(best, cur); prev = d; }
+  return best;
+}
+const xpOf = list => list.reduce((s, c) => s + 10 + 5 * (c.tags?.length || 0), 0);
+
+// ---- 状態 ----
+let me = null, profiles = [], checkins = [], selTags = new Set(), busy = false;
+
+function show(id) {
+  $('#loading').classList.add('hidden');
+  for (const s of ['auth', 'onboard', 'main']) $('#' + s).classList.toggle('hidden', s !== id);
+}
+function toast(msg) {
+  const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+const fbMsg = e => e?.code === 'permission-denied' ? '権限がないみたい（' + e.code + '）' : (e?.message || String(e));
+
+async function load() {
+  try {
+    const own = await getDoc(doc(db, 'profiles', me.id));
+    if (!own.exists()) { show('onboard'); return; }
+    const since = addDays(today(), -400);
+    const [ps, cs] = await Promise.all([
+      getDocs(collection(db, 'profiles')),
+      getDocs(query(collection(db, 'checkins'), where('day', '>=', since))),
+    ]);
+    profiles = ps.docs.map(d => { const x = d.data(); return { id: d.id, username: x.username, exam_date: x.examDate || null, created_at: x.createdAt || '' }; });
+    checkins = cs.docs.map(d => { const x = d.data(); return { user_id: x.uid, day: x.day, tags: x.tags || [] }; });
+    show('main'); render();
+  } catch (e) {
+    show('main');
+    toast('読み込みに失敗: ' + fbMsg(e));
+  }
+}
+
+function render() {
+  const t = today();
+  const mine = profiles.find(x => x.id === me.id);
+  if (!mine) return;
+  const myC = checkins.filter(c => c.user_id === me.id);
+  const set = new Set(myC.map(c => c.day));
+  const todayC = myC.find(c => c.day === t);
+
+  // プレイヤー
+  const xp = xpOf(myC), lv = Math.floor(xp / 100) + 1;
+  const ti = Math.min(Math.floor((lv - 1) / 2), TITLES.length - 1);
+  $('#pName').textContent = mine.username;
+  $('#pTitle').textContent = TITLES[ti];
+  $('#avatar').textContent = AVATARS[ti];
+  $('#pLv').textContent = 'Lv.' + lv;
+  $('#pXp').textContent = (xp % 100) + ' / 100 XP';
+  $('#xpBar').style.width = (xp % 100) + '%';
+
+  // ステータス
+  const streak = calcStreak(set);
+  $('#sStreak').textContent = streak;
+  $('#sBest').textContent = bestStreak(set);
+  $('#sTotal').textContent = set.size;
+
+  // ボス（試験日）
+  if (mine.exam_date) {
+    const left = diffDays(mine.exam_date, t);
+    const start = mine.created_at.slice(0, 10) || t;
+    const span = Math.max(1, diffDays(mine.exam_date, start));
+    $('#bossDays').textContent = left > 0 ? `あと ${left} 日` : left === 0 ? '今日が本番！' : '討伐完了';
+    $('#hpBar').style.width = Math.max(0, Math.min(100, left / span * 100)) + '%';
+    $('#bossDate').textContent = mine.exam_date.replaceAll('-', '/');
+    $('#bossWeeks').textContent = left > 0 ? `約 ${Math.ceil(left / 7)} 週` : '';
+  } else {
+    $('#bossDays').textContent = '未設定';
+    $('#hpBar').style.width = '100%';
+    $('#bossDate').textContent = '⚙ 設定から試験日を入れてね';
+    $('#bossWeeks').textContent = '';
+  }
+
+  // 今日のクエスト
+  if (todayC) selTags = new Set(todayC.tags || []);
+  $('#chips').innerHTML = TAGS.map(([k, name]) =>
+    `<button type="button" class="chip${selTags.has(k) ? ' on' : ''}" data-tag="${k}">${name}</button>`).join('');
+  const btn = $('#clearBtn');
+  btn.textContent = todayC ? 'クリア済み ✓' : '今日やった！';
+  btn.classList.toggle('done', !!todayC);
+  $('#undoBtn').classList.toggle('hidden', !todayC);
+  $('#warn').classList.toggle('hidden', !!todayC || streak === 0);
+  if (!todayC && streak > 0) $('#warn').textContent = `🔥${streak}日連続が途切れそう！`;
+
+  // ヒートマップ（月曜はじまり・12週）
+  const dow = (new Date(t + 'T00:00:00Z').getUTCDay() + 6) % 7;
+  const start = addDays(t, -(dow + 7 * 11));
+  let h = '';
+  for (let i = 0; i < 84; i++) {
+    const d = addDays(start, i);
+    const c = myC.find(x => x.day === d);
+    const cls = [c ? ((c.tags?.length || 0) >= 2 ? 'on' : 'on2') : '', d === t ? 'today' : '', d > t ? 'future' : ''].join(' ');
+    h += `<i class="${cls}" title="${d}"></i>`;
+  }
+  $('#heat').innerHTML = h;
+
+  // パーティー
+  const rows = profiles.map(p => {
+    const s = new Set(checkins.filter(c => c.user_id === p.id).map(c => c.day));
+    return { p, streak: calcStreak(s), done: s.has(t), left: p.exam_date ? diffDays(p.exam_date, t) : null };
+  }).sort((a, b) => b.streak - a.streak || a.p.username.localeCompare(b.p.username));
+  $('#party').innerHTML = rows.map((r, i) => `
+    <li>
+      <span class="rank">${i + 1}</span>
+      <span class="who"><b>${esc(r.p.username)}${r.p.id === me.id ? '<span class="you">YOU</span>' : ''}</b>
+        <span>${r.left == null ? '試験日 未設定' : r.left > 0 ? `試験まで ${r.left} 日` : r.left === 0 ? '今日が試験！' : '試験おわり'}</span></span>
+      <span class="fire">🔥${r.streak}</span>
+      <span class="ok">${r.done ? '✅' : '⬜'}</span>
+    </li>`).join('');
+}
+
+// ---- 操作 ----
+const saveCheckin = () => {
+  const t = today();
+  return setDoc(doc(db, 'checkins', `${me.id}_${t}`), { uid: me.id, day: t, tags: [...selTags] });
+};
+const doneToday = () => checkins.some(c => c.user_id === me.id && c.day === today());
+
+$('#chips').addEventListener('click', async e => {
+  const k = e.target.closest('[data-tag]')?.dataset.tag;
+  if (!k || busy) return;
+  selTags.has(k) ? selTags.delete(k) : selTags.add(k);
+  if (doneToday()) {
+    busy = true;
+    try { await saveCheckin(); } catch (err) { toast('保存に失敗: ' + fbMsg(err)); }
+    busy = false;
+    await load();
+  } else {
+    e.target.classList.toggle('on', selTags.has(k));
+  }
+});
+
+$('#clearBtn').addEventListener('click', async () => {
+  if (busy || doneToday()) return;
+  busy = true; $('#clearBtn').disabled = true;
+  const gain = 10 + 5 * selTags.size;
+  try { await saveCheckin(); }
+  catch (err) { toast('保存に失敗: ' + fbMsg(err)); busy = false; $('#clearBtn').disabled = false; return; }
+  busy = false; $('#clearBtn').disabled = false;
+  await load();
+  const s = calcStreak(new Set(checkins.filter(c => c.user_id === me.id).map(c => c.day)));
+  $('#clearSub').textContent = `+${gain} XP　🔥${s}日連続`;
+  $('#clear').classList.remove('hidden');
+  setTimeout(() => $('#clear').classList.add('hidden'), 1800);
+});
+$('#clear').addEventListener('click', () => $('#clear').classList.add('hidden'));
+
+$('#undoBtn').addEventListener('click', async () => {
+  if (busy || !confirm('今日の記録を取り消す？')) return;
+  busy = true;
+  try { await deleteDoc(doc(db, 'checkins', `${me.id}_${today()}`)); }
+  catch (err) { toast('取り消しに失敗: ' + fbMsg(err)); }
+  busy = false;
+  selTags = new Set();
+  await load();
+});
+
+// ---- ログイン ----
+$('#googleBtn').addEventListener('click', async () => {
+  $('#authErr').textContent = '';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    $('#authErr').textContent = e.code === 'auth/unauthorized-domain'
+      ? 'このURLがFirebaseの承認済みドメインに入ってないみたい'
+      : 'ログインできませんでした（' + (e.code || e.message) + '）';
+  }
+});
+
+$('#onboardForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const username = $('#obName').value.trim();
+  if (!username) return;
+  $('#obErr').textContent = ''; $('#obBtn').disabled = true;
+  try {
+    await setDoc(doc(db, 'profiles', me.id), {
+      username, examDate: $('#obDate').value || null, createdAt: today(), invite: $('#obInvite').value.trim(),
+    });
+    await load();
+  } catch (err) {
+    $('#obErr').textContent = err.code === 'permission-denied' ? '招待コードが違うみたい' : fbMsg(err);
+  }
+  $('#obBtn').disabled = false;
+});
+$('#obLogout').addEventListener('click', () => signOut(auth));
+
+// ---- 設定 ----
+$('#openSettings').addEventListener('click', () => {
+  const mine = profiles.find(x => x.id === me.id);
+  $('#stName').value = mine.username;
+  $('#stDate').value = mine.exam_date || '';
+  $('#stErr').textContent = '';
+  $('#settings').showModal();
+});
+$('#saveSettings').addEventListener('click', async e => {
+  e.preventDefault();
+  const username = $('#stName').value.trim();
+  if (!username) { $('#stErr').textContent = 'ユーザー名を入れてね'; return; }
+  if (profiles.some(p => p.id !== me.id && p.username === username)) { $('#stErr').textContent = 'その名前はもう使われてるよ'; return; }
+  try {
+    await updateDoc(doc(db, 'profiles', me.id), { username, examDate: $('#stDate').value || null });
+  } catch (err) { $('#stErr').textContent = fbMsg(err); return; }
+  $('#settings').close();
+  await load();
+});
+$('#logout').addEventListener('click', async () => { $('#settings').close(); await signOut(auth); });
+
+// ---- 起動 ----
+onAuthStateChanged(auth, user => {
+  me = user ? { id: user.uid } : null;
+  if (!me) { profiles = []; checkins = []; show('auth'); return; }
+  load();
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && me) load(); });
+</script>
+</body>
+</html>
