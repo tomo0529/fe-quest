@@ -48,7 +48,7 @@ service cloud.firestore {
     match /checkins/{id} {
       allow read: if isMember();
       allow create, update: if isMember()
-        && request.resource.data.keys().hasOnly(['uid', 'day', 'tags'])
+        && request.resource.data.keys().hasOnly(['uid', 'day', 'tags', 'chapters'])
         && request.resource.data.uid == request.auth.uid
         && id == request.auth.uid + '_' + request.resource.data.day
         && validDay(request.resource.data.day)

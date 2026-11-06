@@ -109,6 +109,23 @@ dialog::backdrop{background:#000a}
 #dobu .cmd{font:inherit;font-size:20px;text-align:left;background:none;border:0;color:var(--text);padding:6px 4px 6px 28px;cursor:pointer;position:relative}
 #dobu .cmd:hover::before,#dobu .cmd:focus::before{content:'▶';position:absolute;left:2px;color:var(--gold)}
 #dobu .cmd:focus{outline:none}
+
+.chapBtn{font:inherit;font-size:15px;width:100%;text-align:left;background:var(--deep);color:var(--text);border:2px solid var(--line);padding:10px;margin-bottom:12px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.chapBtn span{flex:1;min-width:0;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chapList{display:flex;flex-direction:column;gap:4px;margin:-6px 0 12px;max-height:300px;overflow-y:auto;border:2px solid var(--line);padding:6px;background:var(--deep)}
+.chap{font:inherit;font-size:14px;display:flex;gap:8px;align-items:center;text-align:left;background:none;color:var(--text);border:2px solid transparent;padding:6px;cursor:pointer}
+.chap .no{width:30px;flex:none;color:var(--dim);text-align:right}
+.chap .nm{flex:1;min-width:0}
+.chap .cnt{font-size:12px;color:var(--dim);white-space:nowrap}
+.chap.on{background:var(--cyan);color:#14122b;border-color:#000}
+.chap.on .no,.chap.on .cnt{color:#14122b}
+.book{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:10px}
+.book i{font-style:normal;font-size:12px;text-align:center;padding:4px 0;background:var(--deep);border:1px solid #2a2756;color:var(--dim)}
+.book i.on{background:var(--cyan);color:#14122b;border-color:#000}
+.book i.on2{background:var(--gold);color:#14122b;border-color:#000}
+.recent{list-style:none;margin:10px 0 0;padding:0;font-size:13px;color:var(--dim)}
+.recent li{padding:2px 0}
+.recent b{font-weight:400;color:var(--text)}
 </style>
 </head>
 <body>
@@ -180,9 +197,19 @@ dialog::backdrop{background:#000a}
     <div class="panel">
       <h2>▶ 今日のクエスト</h2>
       <div class="chips" id="chips"></div>
+      <button class="chapBtn" id="chapToggle" type="button" aria-expanded="false">📖 やった章：<span id="chapSel">なし</span>▼</button>
+      <div class="chapList hidden" id="chapList"></div>
       <p class="warn hidden" id="warn"></p>
       <button class="btn big" id="clearBtn" type="button">今日やった！</button>
       <div class="center"><button class="link hidden" id="undoBtn" type="button">取り消す</button></div>
+    </div>
+
+    <div class="panel">
+      <h2>▶ 教科書の進捗</h2>
+      <div class="bar"><i id="bookBar" style="width:0"></i></div>
+      <div class="small"><span id="bookTxt"></span><span id="bookLap"></span></div>
+      <div class="book" id="book"></div>
+      <ul class="recent" id="recent"></ul>
     </div>
 
     <div class="panel">
@@ -252,6 +279,13 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const TAGS = [['A','科目A'],['B','科目B'],['T','教科書']];
+// 「いちばんやさしい 基本情報技術者（令和8年度版）」の章立て
+const CHAPTERS = ['試験の概要と学習方法','基礎理論①','基礎理論②','アルゴリズムとプログラミング','コンピュータの構成要素',
+  'システムの構成要素','ソフトウェア','ハードウェア','ヒューマンインタフェースとマルチメディア','データベース','ネットワーク',
+  '情報セキュリティ','システム開発','ソフトウェア開発手法','プロジェクトマネジメント','サービスマネジメントとシステム監査',
+  'システム戦略','システム企画','経営戦略マネジメント','ビジネスインダストリ','企業活動','法務','［科目B］完全対策'];
+const chNo = n => n === 0 ? '序' : String(n);
+const chLabel = n => n === 0 ? '序章' : `第${n}章`;
 const TITLES = ['ビギナー','見習いエンジニア','バグハンター','アルゴリズム使い','ネットワーク術師','DBの賢者','基本情報マスター'];
 const AVATARS = ['🐣','🧙','🗡️','🛡️','🐉','👑','🌟'];
 
@@ -277,7 +311,7 @@ function bestStreak(set) {
 const xpOf = list => list.reduce((s, c) => s + 10 + 5 * (c.tags?.length || 0), 0);
 
 // ---- 状態 ----
-let me = null, profiles = [], checkins = [], selTags = new Set(), busy = false;
+let me = null, profiles = [], checkins = [], selTags = new Set(), selChaps = new Set(), busy = false;
 
 function show(id) {
   $('#loading').classList.add('hidden');
@@ -287,7 +321,7 @@ function toast(msg) {
   const el = $('#toast'); el.textContent = msg; el.classList.remove('hidden');
   clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 4000);
 }
-const fbMsg = e => e?.code === 'permission-denied' ? '権限がないみたい（' + e.code + '）' : (e?.message || String(e));
+const fbMsg = e => e?.code === 'permission-denied' ? '権限がないみたい（Firestoreのルールが最新か確認してね）' : (e?.message || String(e));
 
 async function load() {
   try {
@@ -299,7 +333,7 @@ async function load() {
       getDocs(query(collection(db, 'checkins'), where('day', '>=', since))),
     ]);
     profiles = ps.docs.map(d => { const x = d.data(); return { id: d.id, username: x.username, exam_date: x.examDate || null, created_at: x.createdAt || '' }; });
-    checkins = cs.docs.map(d => { const x = d.data(); return { user_id: x.uid, day: x.day, tags: x.tags || [] }; });
+    checkins = cs.docs.map(d => { const x = d.data(); return { user_id: x.uid, day: x.day, tags: x.tags || [], chapters: x.chapters || [] }; });
     show('main'); render();
   } catch (e) {
     show('main');
@@ -348,7 +382,23 @@ function render() {
   }
 
   // 今日のクエスト
-  if (todayC) selTags = new Set(todayC.tags || []);
+  if (todayC) { selTags = new Set(todayC.tags || []); selChaps = new Set(todayC.chapters || []); }
+
+  // 章ごとの通算回数
+  const chCount = new Array(CHAPTERS.length).fill(0);
+  for (const c of myC) for (const n of c.chapters || []) if (chCount[n] != null) chCount[n]++;
+  renderChapPicker(chCount);
+  const doneCh = chCount.filter(x => x > 0).length;
+  const lap = Math.min(...chCount);              // 全章を何周したか
+  const lapDone = chCount.filter(x => x > lap).length;
+  $('#bookTxt').textContent = lap === 0 ? `${doneCh} / ${CHAPTERS.length} 章クリア` : `${lap + 1}周目 ${lapDone} / ${CHAPTERS.length} 章`;
+  $('#bookLap').textContent = lap > 0 ? `🏆 ${lap}周クリア` : Math.round(doneCh / CHAPTERS.length * 100) + '%';
+  $('#bookBar').style.width = (lap === 0 ? doneCh : lapDone) / CHAPTERS.length * 100 + '%';
+  $('#book').innerHTML = CHAPTERS.map((nm, n) =>
+    `<i class="${chCount[n] > lap ? (lap === 0 ? 'on' : 'on2') : chCount[n] > 0 ? 'on' : ''}" title="${chLabel(n)} ${nm}（${chCount[n]}回）">${chNo(n)}</i>`).join('');
+  const recent = myC.filter(c => c.chapters?.length).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 3);
+  $('#recent').innerHTML = recent.map(c =>
+    `<li>${c.day.slice(5).replace('-', '/')}　<b>${c.chapters.slice().sort((a, b) => a - b).map(n => chLabel(n) + ' ' + CHAPTERS[n]).join('、')}</b></li>`).join('');
   $('#chips').innerHTML = TAGS.map(([k, name]) =>
     `<button type="button" class="chip${selTags.has(k) ? ' on' : ''}" data-tag="${k}">${name}</button>`).join('');
   const btn = $('#clearBtn');
@@ -366,20 +416,23 @@ function render() {
     const d = addDays(start, i);
     const c = myC.find(x => x.day === d);
     const cls = [c ? ((c.tags?.length || 0) >= 2 ? 'on' : 'on2') : '', d === t ? 'today' : '', d > t ? 'future' : ''].join(' ');
-    h += `<i class="${cls}" title="${d}"></i>`;
+    const tip = d + (c?.chapters?.length ? '　' + c.chapters.map(chLabel).join('・') : '');
+    h += `<i class="${cls}" title="${tip}"></i>`;
   }
   $('#heat').innerHTML = h;
 
   // パーティー
   const rows = profiles.map(p => {
     const s = new Set(checkins.filter(c => c.user_id === p.id).map(c => c.day));
-    return { p, streak: calcStreak(s), done: s.has(t), left: p.exam_date ? diffDays(p.exam_date, t) : null };
+    const chs = new Set(checkins.filter(c => c.user_id === p.id).flatMap(c => c.chapters || []));
+    return { p, streak: calcStreak(s), done: s.has(t), left: p.exam_date ? diffDays(p.exam_date, t) : null,
+      book: Math.round(chs.size / CHAPTERS.length * 100) };
   }).sort((a, b) => b.streak - a.streak || a.p.username.localeCompare(b.p.username));
   $('#party').innerHTML = rows.map((r, i) => `
     <li>
       <span class="rank">${i + 1}</span>
       <span class="who"><b>${esc(r.p.username)}${r.p.id === me.id ? '<span class="you">YOU</span>' : ''}</b>
-        <span>${r.left == null ? '試験日 未設定' : r.left > 0 ? `試験まで ${r.left} 日` : r.left === 0 ? '今日が試験！' : '試験おわり'}</span></span>
+        <span>${r.left == null ? '試験日 未設定' : r.left > 0 ? `試験まで ${r.left} 日` : r.left === 0 ? '今日が試験！' : '試験おわり'}・📖${r.book}%</span></span>
       <span class="fire">🔥${r.streak}</span>
       <span class="ok">${r.done ? '✅' : '⬜'}</span>
     </li>`).join('');
@@ -388,7 +441,10 @@ function render() {
 // ---- 操作 ----
 const saveCheckin = () => {
   const t = today();
-  return setDoc(doc(db, 'checkins', `${me.id}_${t}`), { uid: me.id, day: t, tags: [...selTags] });
+  if (selChaps.size) selTags.add('T');   // 章を選んだら「教科書」も自動でON
+  const data = { uid: me.id, day: t, tags: [...selTags] };
+  if (selChaps.size) data.chapters = [...selChaps].sort((a, b) => a - b);
+  return setDoc(doc(db, 'checkins', `${me.id}_${t}`), data);
 };
 const doneToday = () => checkins.some(c => c.user_id === me.id && c.day === today());
 
@@ -403,6 +459,37 @@ $('#chips').addEventListener('click', async e => {
     await load();
   } else {
     e.target.classList.toggle('on', selTags.has(k));
+  }
+});
+
+function renderChapPicker(chCount) {
+  const sel = [...selChaps].sort((a, b) => a - b);
+  $('#chapSel').textContent = sel.length ? sel.map(chLabel).join('・') : 'なし（タップで選ぶ）';
+  $('#chapList').innerHTML = CHAPTERS.map((nm, n) => `
+    <button type="button" class="chap${selChaps.has(n) ? ' on' : ''}" data-ch="${n}">
+      <span class="no">${chNo(n)}</span><span class="nm">${nm}</span><span class="cnt">${chCount[n] ? chCount[n] + '回' : ''}</span>
+    </button>`).join('');
+}
+$('#chapToggle').addEventListener('click', () => {
+  const open = $('#chapList').classList.toggle('hidden') === false;
+  $('#chapToggle').setAttribute('aria-expanded', open);
+});
+$('#chapList').addEventListener('click', async e => {
+  const el = e.target.closest('[data-ch]');
+  if (!el || busy) return;
+  const n = Number(el.dataset.ch);
+  selChaps.has(n) ? selChaps.delete(n) : selChaps.add(n);
+  if (selChaps.size) selTags.add('T');
+  if (doneToday()) {
+    busy = true;
+    try { await saveCheckin(); } catch (err) { toast('保存に失敗: ' + fbMsg(err)); }
+    busy = false;
+    await load();
+  } else {
+    el.classList.toggle('on', selChaps.has(n));
+    const sel = [...selChaps].sort((a, b) => a - b);
+    $('#chapSel').textContent = sel.length ? sel.map(chLabel).join('・') : 'なし（タップで選ぶ）';
+    document.querySelector('.chip[data-tag="T"]')?.classList.toggle('on', selTags.has('T'));
   }
 });
 
@@ -427,7 +514,7 @@ $('#undoBtn').addEventListener('click', async () => {
   try { await deleteDoc(doc(db, 'checkins', `${me.id}_${today()}`)); }
   catch (err) { toast('取り消しに失敗: ' + fbMsg(err)); }
   busy = false;
-  selTags = new Set();
+  selTags = new Set(); selChaps = new Set();
   await load();
 });
 
