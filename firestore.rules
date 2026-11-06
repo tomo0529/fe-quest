@@ -29,7 +29,7 @@ service cloud.firestore {
     function validDay(day) { return isDayFormat(day) && isRecentDay(day); }
 
     function validProfile(d) {
-      return d.keys().hasOnly(['username', 'examDate', 'createdAt', 'invite'])
+      return d.keys().hasOnly(['username', 'examDate', 'createdAt', 'invite', 'book'])
         && d.username is string && d.username.size() >= 1 && d.username.size() <= 16
         && (d.examDate == null || isDayFormat(d.examDate));
     }

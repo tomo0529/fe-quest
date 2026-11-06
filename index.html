@@ -37,9 +37,9 @@ h2{font-size:15px;margin:0 0 10px;color:var(--dim);font-weight:400;letter-spacin
 .btn.big.done{background:var(--green)}
 .link{background:none;border:0;color:var(--dim);font:inherit;text-decoration:underline;cursor:pointer;padding:6px}
 label{display:block;margin-bottom:12px;color:var(--dim);font-size:14px}
-input{font:inherit;width:100%;margin-top:4px;padding:10px;background:var(--deep);color:var(--text);
+input,select{font:inherit;width:100%;margin-top:4px;padding:10px;background:var(--deep);color:var(--text);
   border:2px solid var(--line);border-radius:0;-webkit-appearance:none;appearance:none}
-input:focus{outline:2px solid var(--gold)}
+input:focus,select:focus{outline:2px solid var(--gold)}
 .note{color:var(--dim);font-size:13px;margin:10px 0 0}
 .err{color:var(--red);font-size:14px;min-height:1.5em;margin:6px 0 0}
 .tabs{display:flex;margin-bottom:14px}
@@ -152,6 +152,7 @@ dialog::backdrop{background:#000a}
       <form id="onboardForm">
         <label>ユーザー名（16文字まで・みんなに表示）<input id="obName" maxlength="16" required></label>
         <label>試験日（あとで変更OK）<input id="obDate" type="date"></label>
+        <label>使ってる教科書<select id="obBook"></select></label>
         <label>招待コード（誘ってくれた人に聞いてね）<input id="obInvite" required autocomplete="off"></label>
         <button class="btn big" id="obBtn">冒険をはじめる</button>
         <p class="err" id="obErr"></p>
@@ -204,8 +205,8 @@ dialog::backdrop{background:#000a}
       <div class="center"><button class="link hidden" id="undoBtn" type="button">取り消す</button></div>
     </div>
 
-    <div class="panel">
-      <h2>▶ 教科書の進捗</h2>
+    <div class="panel" id="bookPanel">
+      <h2>▶ 教科書の進捗 <span id="bookName" style="font-size:12px"></span></h2>
       <div class="bar"><i id="bookBar" style="width:0"></i></div>
       <div class="small"><span id="bookTxt"></span><span id="bookLap"></span></div>
       <div class="book" id="book"></div>
@@ -229,6 +230,8 @@ dialog::backdrop{background:#000a}
     <h2>▶ 設定</h2>
     <label>ユーザー名<input id="stName" maxlength="16" required></label>
     <label>試験日<input id="stDate" type="date"></label>
+    <label>使ってる教科書<select id="stBook"></select></label>
+    <p class="note" style="margin-top:-6px">※ 途中で変えると、今までの章の記録は新しい教科書の章番号として数えられるよ</p>
     <p class="err" id="stErr"></p>
     <div class="row">
       <button class="link" id="logout" type="button">ログアウト</button>
@@ -279,13 +282,35 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const TAGS = [['A','科目A'],['B','科目B'],['T','教科書']];
-// 「いちばんやさしい 基本情報技術者（令和8年度版）」の章立て
-const CHAPTERS = ['試験の概要と学習方法','基礎理論①','基礎理論②','アルゴリズムとプログラミング','コンピュータの構成要素',
+// 教科書ごとの章立て（どちらも令和8年度版）
+const BOOKS = {
+  ichiyasa: {
+    name: 'いちばんやさしい 基本情報技術者',
+    chapters: ['試験の概要と学習方法','基礎理論①','基礎理論②','アルゴリズムとプログラミング','コンピュータの構成要素',
   'システムの構成要素','ソフトウェア','ハードウェア','ヒューマンインタフェースとマルチメディア','データベース','ネットワーク',
   '情報セキュリティ','システム開発','ソフトウェア開発手法','プロジェクトマネジメント','サービスマネジメントとシステム監査',
-  'システム戦略','システム企画','経営戦略マネジメント','ビジネスインダストリ','企業活動','法務','［科目B］完全対策'];
-const chNo = n => n === 0 ? '序' : String(n);
-const chLabel = n => n === 0 ? '序章' : `第${n}章`;
+  'システム戦略','システム企画','経営戦略マネジメント','ビジネスインダストリ','企業活動','法務','［科目B］完全対策'],
+    no: n => n === 0 ? '序' : String(n),
+    label: n => n === 0 ? '序章' : `第${n}章`,
+  },
+  kitami: {
+    name: 'キタミ式イラストIT塾 基本情報技術者',
+    chapters: ['コンピュータは電気でものを考える','「n進数」の扱いに慣れる','2進数の計算と数値表現','コンピュータの回路を知る',
+      'デジタルデータのあらわし方','CPU','メモリ','ハードディスクとその他の補助記憶装置','その他のハードウェア','基本ソフトウェア',
+      'ファイル管理','データベース','ネットワーク','セキュリティ','暗号と認証','システム開発','システム周りの各種マネジメント',
+      'プログラムの作り方','システム構成と故障対策','企業活動と関連法規','経営戦略のための業務改善と分析手法',
+      '財務会計は忘れちゃいけないお金の話','科目B試験対策'],
+    no: n => String(n),
+    label: n => `Ch.${n}`,
+  },
+  none: { name: 'その他・教科書なし', chapters: [], no: String, label: String },
+};
+const bookOf = p => BOOKS[p?.book] || BOOKS.ichiyasa;
+let BK = BOOKS.ichiyasa, CHAPTERS = BK.chapters;
+const chNo = n => BK.no(n);
+const chLabel = n => BK.label(n);
+const bookOptions = sel => Object.entries(BOOKS).map(([k, b]) =>
+  `<option value="${k}"${k === sel ? ' selected' : ''}>${b.name}</option>`).join('');
 const TITLES = ['ビギナー','見習いエンジニア','バグハンター','アルゴリズム使い','ネットワーク術師','DBの賢者','基本情報マスター'];
 const AVATARS = ['🐣','🧙','🗡️','🛡️','🐉','👑','🌟'];
 
@@ -332,7 +357,7 @@ async function load() {
       getDocs(collection(db, 'profiles')),
       getDocs(query(collection(db, 'checkins'), where('day', '>=', since))),
     ]);
-    profiles = ps.docs.map(d => { const x = d.data(); return { id: d.id, username: x.username, exam_date: x.examDate || null, created_at: x.createdAt || '' }; });
+    profiles = ps.docs.map(d => { const x = d.data(); return { id: d.id, username: x.username, exam_date: x.examDate || null, created_at: x.createdAt || '', book: x.book || 'ichiyasa' }; });
     checkins = cs.docs.map(d => { const x = d.data(); return { user_id: x.uid, day: x.day, tags: x.tags || [], chapters: x.chapters || [] }; });
     show('main'); render();
   } catch (e) {
@@ -384,13 +409,19 @@ function render() {
   // 今日のクエスト
   if (todayC) { selTags = new Set(todayC.tags || []); selChaps = new Set(todayC.chapters || []); }
 
-  // 章ごとの通算回数
+  // 章ごとの通算回数（自分の教科書の章立てで数える）
+  BK = bookOf(mine); CHAPTERS = BK.chapters;
+  const hasBook = CHAPTERS.length > 0;
+  for (const id of ['#chapToggle', '#bookPanel']) $(id).classList.toggle('hidden', !hasBook);
+  if (!hasBook) { $('#chapList').classList.add('hidden'); selChaps = new Set(); }
+  $('#bookName').textContent = hasBook ? '（' + BK.name.replace(' 基本情報技術者', '') + '）' : '';
   const chCount = new Array(CHAPTERS.length).fill(0);
   for (const c of myC) for (const n of c.chapters || []) if (chCount[n] != null) chCount[n]++;
   renderChapPicker(chCount);
   const doneCh = chCount.filter(x => x > 0).length;
-  const lap = Math.min(...chCount);              // 全章を何周したか
+  const lap = hasBook ? Math.min(...chCount) : 0;              // 全章を何周したか
   const lapDone = chCount.filter(x => x > lap).length;
+  if (hasBook) {
   $('#bookTxt').textContent = lap === 0 ? `${doneCh} / ${CHAPTERS.length} 章クリア` : `${lap + 1}周目 ${lapDone} / ${CHAPTERS.length} 章`;
   $('#bookLap').textContent = lap > 0 ? `🏆 ${lap}周クリア` : Math.round(doneCh / CHAPTERS.length * 100) + '%';
   $('#bookBar').style.width = (lap === 0 ? doneCh : lapDone) / CHAPTERS.length * 100 + '%';
@@ -398,7 +429,8 @@ function render() {
     `<i class="${chCount[n] > lap ? (lap === 0 ? 'on' : 'on2') : chCount[n] > 0 ? 'on' : ''}" title="${chLabel(n)} ${nm}（${chCount[n]}回）">${chNo(n)}</i>`).join('');
   const recent = myC.filter(c => c.chapters?.length).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 3);
   $('#recent').innerHTML = recent.map(c =>
-    `<li>${c.day.slice(5).replace('-', '/')}　<b>${c.chapters.slice().sort((a, b) => a - b).map(n => chLabel(n) + ' ' + CHAPTERS[n]).join('、')}</b></li>`).join('');
+    `<li>${c.day.slice(5).replace('-', '/')}　<b>${c.chapters.slice().sort((a, b) => a - b).filter(n => n < CHAPTERS.length).map(n => chLabel(n) + ' ' + CHAPTERS[n]).join('、')}</b></li>`).join('');
+  }
   $('#chips').innerHTML = TAGS.map(([k, name]) =>
     `<button type="button" class="chip${selTags.has(k) ? ' on' : ''}" data-tag="${k}">${name}</button>`).join('');
   const btn = $('#clearBtn');
@@ -426,13 +458,13 @@ function render() {
     const s = new Set(checkins.filter(c => c.user_id === p.id).map(c => c.day));
     const chs = new Set(checkins.filter(c => c.user_id === p.id).flatMap(c => c.chapters || []));
     return { p, streak: calcStreak(s), done: s.has(t), left: p.exam_date ? diffDays(p.exam_date, t) : null,
-      book: Math.round(chs.size / CHAPTERS.length * 100) };
+      book: bookOf(p).chapters.length ? Math.round([...chs].filter(n => n < bookOf(p).chapters.length).length / bookOf(p).chapters.length * 100) : null };
   }).sort((a, b) => b.streak - a.streak || a.p.username.localeCompare(b.p.username));
   $('#party').innerHTML = rows.map((r, i) => `
     <li>
       <span class="rank">${i + 1}</span>
       <span class="who"><b>${esc(r.p.username)}${r.p.id === me.id ? '<span class="you">YOU</span>' : ''}</b>
-        <span>${r.left == null ? '試験日 未設定' : r.left > 0 ? `試験まで ${r.left} 日` : r.left === 0 ? '今日が試験！' : '試験おわり'}・📖${r.book}%</span></span>
+        <span>${r.left == null ? '試験日 未設定' : r.left > 0 ? `試験まで ${r.left} 日` : r.left === 0 ? '今日が試験！' : '試験おわり'}${r.book == null ? '' : `・📖${r.book}%`}</span></span>
       <span class="fire">🔥${r.streak}</span>
       <span class="ok">${r.done ? '✅' : '⬜'}</span>
     </li>`).join('');
@@ -538,7 +570,7 @@ $('#onboardForm').addEventListener('submit', async e => {
   $('#obErr').textContent = ''; $('#obBtn').disabled = true;
   try {
     await setDoc(doc(db, 'profiles', me.id), {
-      username, examDate: $('#obDate').value || null, createdAt: today(), invite: $('#obInvite').value.trim(),
+      username, examDate: $('#obDate').value || null, createdAt: today(), invite: $('#obInvite').value.trim(), book: $('#obBook').value,
     });
     await load();
   } catch (err) {
@@ -553,6 +585,7 @@ $('#openSettings').addEventListener('click', () => {
   const mine = profiles.find(x => x.id === me.id);
   $('#stName').value = mine.username;
   $('#stDate').value = mine.exam_date || '';
+  $('#stBook').innerHTML = bookOptions(mine.book);
   $('#stErr').textContent = '';
   $('#settings').showModal();
 });
@@ -562,7 +595,7 @@ $('#saveSettings').addEventListener('click', async e => {
   if (!username) { $('#stErr').textContent = 'ユーザー名を入れてね'; return; }
   if (profiles.some(p => p.id !== me.id && p.username === username)) { $('#stErr').textContent = 'その名前はもう使われてるよ'; return; }
   try {
-    await updateDoc(doc(db, 'profiles', me.id), { username, examDate: $('#stDate').value || null });
+    await updateDoc(doc(db, 'profiles', me.id), { username, examDate: $('#stDate').value || null, book: $('#stBook').value });
   } catch (err) { $('#stErr').textContent = fbMsg(err); return; }
   $('#settings').close();
   await load();
@@ -591,6 +624,8 @@ $('#dobuCmds').addEventListener('click', e => {
   if (a === 'no') { $('#dobu').classList.add('hidden'); return; }
   if (a === 'yes') renderDobu(DOBU_NO[dobuNo++ % DOBU_NO.length] + '<br><br>' + DOBU_Q.replace('<br>', ''));
 });
+
+$('#obBook').innerHTML = bookOptions('ichiyasa');
 
 // ---- 起動 ----
 onAuthStateChanged(auth, user => {
